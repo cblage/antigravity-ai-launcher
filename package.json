@@ -1,0 +1,92 @@
+{
+  "name": "antigravity-ai-launcher",
+  "displayName": "Antigravity AI Launcher",
+  "description": "Persistent launchers for Antigravity, Claude Code, Codex, DeepSeek, and Grok, plus active-provider quota gauges where applicable.",
+  "publisher": "cblage",
+	"version": "0.3.71",
+  "license": "BSD-3-Clause",
+  "engines": {
+    "vscode": "^1.107.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "antigravity",
+    "gemini",
+    "codex",
+    "claude",
+    "deepseek",
+    "grok"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./extension.js",
+  "scripts": {
+    "check": "node --check extension.js && find src test -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "test": "node --test"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "antigravityAiLauncher.openGemini",
+        "title": "Open Antigravity",
+        "category": "Antigravity AI Launcher"
+      },
+      {
+        "command": "antigravityAiLauncher.newGeminiConversation",
+        "title": "New Antigravity Conversation",
+        "category": "Antigravity AI Launcher"
+      },
+      {
+        "command": "antigravityAiLauncher.openClaude",
+        "title": "Open Claude Code",
+        "category": "Antigravity AI Launcher"
+      },
+      {
+        "command": "antigravityAiLauncher.openCodex",
+        "title": "Open Codex",
+        "category": "Antigravity AI Launcher"
+      },
+      {
+        "command": "antigravityAiLauncher.openDeepSeek",
+        "title": "Open DeepSeek",
+        "category": "Antigravity AI Launcher"
+      },
+      {
+        "command": "antigravityAiLauncher.openGrok",
+        "title": "Open Grok",
+        "category": "Antigravity AI Launcher"
+      },
+      {
+        "command": "antigravityAiLauncher.toggleMaximizedSecondarySidebar",
+        "title": "Open or Toggle Maximized Secondary Sidebar",
+        "category": "Antigravity AI Launcher"
+      },
+      {
+        "command": "antigravityAiLauncher.refreshQuota",
+        "title": "Refresh Active AI Quota",
+        "category": "Antigravity AI Launcher"
+      }
+    ],
+    "configuration": {
+      "title": "Antigravity AI Launcher",
+      "properties": {
+        "antigravityAiLauncher.quota.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show 5-hour and 7-day usage gauges for the selected AI provider while the secondary sidebar is open. Gauges are hidden for DeepSeek and Grok."
+        },
+        "antigravityAiLauncher.quota.showBars": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show five-position filled-and-hollow circle Codicon bars next to the 5-hour and 7-day percentages."
+        }
+      }
+    }
+  }
+}
