@@ -22,6 +22,7 @@ const {
   formatWindowGaugeText,
   quotaWindowEntries,
   shouldShowUsageGauges,
+  weeklyQuotaPace,
   windowSeverity
 } = require("./src/quota/format");
 const { GeminiQuotaReader } = require("./src/quota/gemini");
@@ -616,6 +617,9 @@ class QuotaGauge {
           continue;
         }
         const window = entry.window;
+        const pace = key === "sevenDay"
+          ? weeklyQuotaPace(window, cached.snapshot.observedAt)
+          : undefined;
         item.backgroundColor = undefined;
         item.color = this.activeState.sidebarVisible
           ? new vscode.ThemeColor(ACTIVE_PROVIDER_COLOR)
@@ -624,12 +628,13 @@ class QuotaGauge {
           showBars: settings.showBars,
           sidebarVisible: this.activeState.sidebarVisible,
           stale,
+          pace,
           showStateIcons: entry === windowEntries[0]
         });
         item.name = refreshLabel;
         item.tooltip = tooltip;
         item.accessibilityInformation = {
-          label: `${metadata.label} ${entry.tooltipLabel || entry.label || definition.label} quota: ${Math.round(window.usedPercent)} percent used. Activate to refresh.`
+          label: `${metadata.label} ${entry.tooltipLabel || entry.label || definition.label} quota: ${Math.round(window.usedPercent)} percent used.${pace ? ` ${pace.overConsuming ? "Over-consuming" : "In the green"}: ${pace.usedPercent.toFixed(1)} percent used versus ${pace.elapsedPercent.toFixed(1)} percent of the window elapsed.` : ""} Activate to refresh.`
         };
 
         const severity = windowSeverity(window);

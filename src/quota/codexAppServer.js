@@ -1,6 +1,7 @@
 "use strict";
 
 const { spawn } = require("node:child_process");
+const { version: EXTENSION_VERSION } = require("../../package.json");
 
 class CodexAppServer {
   constructor(command) {
@@ -28,7 +29,7 @@ class CodexAppServer {
       clientInfo: {
         name: "antigravity-ai-launcher",
         title: "Antigravity AI Launcher",
-        version: "0.3.60"
+        version: EXTENSION_VERSION
       },
       capabilities: {
         experimentalApi: false,

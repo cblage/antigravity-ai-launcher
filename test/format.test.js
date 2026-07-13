@@ -10,9 +10,11 @@ const {
   formatLauncherTooltip,
   formatPercent,
   formatRefreshButtonLabel,
+  formatWeeklyPaceLine,
   formatWindowGaugeText,
   miniBar,
   shouldShowUsageGauges,
+  weeklyQuotaPace,
   windowSeverity
 } = require("../src/quota/format");
 
@@ -44,7 +46,7 @@ test("renders five-slot circle Codicon usage bars", () => {
   assert.equal(miniBar(100), filled.repeat(5));
   assert.equal(
     formatGaugeText(snapshot),
-    `5h ${filled}${empty.repeat(4)} 01% · 7d ${filled.repeat(2)}${empty.repeat(3)} 28%`
+    `5h ${filled}${empty.repeat(4)} 01% · 7d ${filled.repeat(2)}${empty.repeat(3)} 28% $(pass-filled)`
   );
   assert.equal(
     formatWindowGaugeText("7d", snapshot.sevenDay, { showStateIcons: false }),
@@ -125,11 +127,82 @@ test("renders a single weekly gauge for the new Codex quota shape", () => {
 
   assert.equal(
     formatGaugeText(codex),
-    `7d ${filled}${empty.repeat(4)} 10%`
+    `7d ${filled}${empty.repeat(4)} 10% $(warning)`
   );
   const tooltip = formatGaugeTooltip(codex);
   assert.match(tooltip, /\*\*Weekly:\*\* 10\.0% used/);
+  assert.match(tooltip, /\*\*Weekly pace:\*\* Over-consuming/);
+  assert.match(tooltip, /10\.0% used vs 5\.4% of the window elapsed/);
   assert.doesNotMatch(tooltip, /\*\*5h:/);
+});
+
+test("compares weekly usage against elapsed quota-window time", () => {
+  const observedAt = new Date("2026-07-04T12:00:00Z");
+  const window = {
+    usedPercent: 50,
+    resetAt: new Date("2026-07-08T00:00:00Z"),
+    durationMinutes: 10080,
+    disabled: false
+  };
+  const equal = weeklyQuotaPace(window, observedAt);
+  const over = weeklyQuotaPace({ ...window, usedPercent: 50.1 }, observedAt);
+
+  assert.equal(equal.elapsedPercent, 50);
+  assert.equal(equal.deltaPercentPoints, 0);
+  assert.equal(equal.overConsuming, false);
+  assert.equal(over.overConsuming, true);
+  assert.equal(over.deltaPercentPoints, 0.10000000000000142);
+  assert.match(formatWeeklyPaceLine(equal), /In the green.*exactly on pace/);
+  assert.match(formatWeeklyPaceLine(over), /Over-consuming.*0\.1 percentage points over pace/);
+});
+
+test("omits weekly pace when timing data is invalid or expired", () => {
+  const validWindow = {
+    usedPercent: 10,
+    resetAt: new Date("2026-07-08T00:00:00Z"),
+    durationMinutes: 10080,
+    disabled: false
+  };
+
+  assert.equal(weeklyQuotaPace(
+    { ...validWindow, disabled: true },
+    new Date("2026-07-04T12:00:00Z")
+  ), undefined);
+  assert.equal(weeklyQuotaPace(
+    { ...validWindow, resetAt: undefined },
+    new Date("2026-07-04T12:00:00Z")
+  ), undefined);
+  assert.equal(weeklyQuotaPace(validWindow, undefined), undefined);
+  assert.equal(weeklyQuotaPace(
+    { ...validWindow, durationMinutes: 0 },
+    new Date("2026-07-04T12:00:00Z")
+  ), undefined);
+  assert.equal(weeklyQuotaPace(
+    validWindow,
+    new Date("2026-07-08T00:00:00Z")
+  ), undefined);
+  assert.equal(weeklyQuotaPace(
+    validWindow,
+    new Date("2026-06-30T23:59:59Z")
+  ), undefined);
+});
+
+test("weekly pace rendering is provider-independent", () => {
+  for (const provider of ["gemini", "claude", "codex"]) {
+    const providerSnapshot = {
+      provider,
+      observedAt: new Date("2026-07-04T12:00:00Z"),
+      sevenDay: {
+        usedPercent: 40,
+        remainingPercent: 60,
+        resetAt: new Date("2026-07-08T00:00:00Z"),
+        durationMinutes: 10080,
+        disabled: false
+      }
+    };
+    assert.match(formatGaugeText(providerSnapshot), /40% \$\(pass-filled\)$/);
+    assert.match(formatGaugeTooltip(providerSnapshot), /Weekly pace.*In the green/);
+  }
 });
 
 test("does not add an icon when the sidebar is hidden", () => {
@@ -148,6 +221,8 @@ test("tooltip contains both windows, source, and stale state", () => {
   });
   assert.match(tooltip, /\*\*5h:\*\* 1\.0% used/);
   assert.match(tooltip, /\*\*7d:\*\* 28\.0% used/);
+  assert.match(tooltip, /\*\*Weekly pace:\*\* In the green/);
+  assert.match(tooltip, /28\.0% used vs 69\.6% of the window elapsed/);
   assert.match(tooltip, /last-selected provider/);
   assert.match(tooltip, /offline/);
   assert.match(tooltip, /Click any quota gauge to refresh now/);

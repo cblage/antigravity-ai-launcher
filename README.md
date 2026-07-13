@@ -12,13 +12,13 @@ The gauges report **usage** rather than quota remaining:
 
 ```text
 [5h $(circle-filled)$(circle)$(circle)$(circle)$(circle) 01%]
-[7d $(circle-filled)$(circle-filled)$(circle)$(circle)$(circle) 28%]
+[7d $(circle-filled)$(circle-filled)$(circle)$(circle)$(circle) 28% $(pass-filled)]
 ```
 
 Codex uses only the weekly form and never fabricates a removed 5h bucket:
 
 ```text
-[7d $(circle-filled)$(circle)$(circle)$(circle)$(circle) 11%]
+[7d $(circle-filled)$(circle)$(circle)$(circle)$(circle) 11% $(warning)]
 ```
 
 Each five-position bar uses VS Code's filled and hollow circle Codicons
@@ -26,6 +26,13 @@ Each five-position bar uses VS Code's filled and hollow circle Codicons
 Positive usage is rounded upward to the next circle for visibility; the
 adjacent numeric percentage remains exact and authoritative. This avoids the
 inconsistent fallback-font metrics used by fractional Unicode Block Elements.
+
+Every weekly gauge compares quota used with the percentage of its seven-day
+window that had elapsed when the quota sample was observed. `$(pass-filled)`
+means usage is at or below that pace; `$(warning)` means usage is ahead of it.
+The tooltip shows both percentages and the exact percentage-point difference.
+Using the quota sample's observation time prevents stale cached data from
+appearing progressively healthier merely because the wall clock advanced.
 
 The provider name is intentionally omitted from the gauges. Provider launchers
 use plain text with no icons or active-state markers. The launcher currently
@@ -187,15 +194,16 @@ The extension has no runtime npm dependencies and requires no build step.
 ## Package
 
 ```sh
-npx --yes @vscode/vsce package \
-  --no-dependencies \
-  --out antigravity-ai-launcher-0.3.66.vsix
+npx --yes @vscode/vsce package --no-dependencies
 ```
+
+`vsce` reads the version from `package.json` and names the output
+`antigravity-ai-launcher-<version>.vsix` automatically.
 
 ## Install in Antigravity IDE
 
 Run **Extensions: Install from VSIX...** from Antigravity's Command Palette,
-choose `antigravity-ai-launcher-0.3.66.vsix`, and then run **Developer: Reload
+choose the generated `antigravity-ai-launcher-<version>.vsix`, and then run **Developer: Reload
 Window**.
 
 ## Uninstall

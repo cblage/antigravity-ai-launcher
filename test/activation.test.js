@@ -14,6 +14,11 @@ test("activates eagerly and reconciles initial state without blocking commands",
     path.join(__dirname, "..", "src", "activeProvider.js"),
     "utf8"
   );
+  const codexAppServerSource = fs.readFileSync(
+    path.join(__dirname, "..", "src", "quota", "codexAppServer.js"),
+    "utf8"
+  );
+  const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
   assert.match(source, /function activate\(context\)/);
   assert.doesNotMatch(source, /async function activate\(context\)/);
   assert.doesNotMatch(source, /await tracker\.refresh\(\)/);
@@ -37,6 +42,8 @@ test("activates eagerly and reconciles initial state without blocking commands",
   assert.match(source, /"\$\(warning\) Unable to load quota"/);
   assert.match(source, /quotaUnavailable\s*\?\s*new vscode\.ThemeColor\("statusBarItem\.warningBackground"\)/);
   assert.match(source, /quotaWindowEntries\(cached\.snapshot\)/);
+  assert.match(source, /key === "sevenDay"\s*\? weeklyQuotaPace/);
+  assert.match(source, /pace\.overConsuming \? "Over-consuming" : "In the green"/);
   assert.match(source, /provider === "codex" \? this\.items\.sevenDay : this\.items\.fiveHour/);
   assert.match(source, /context\.globalState\.get\(CLAUDE_QUOTA_STATE_KEY\)/);
   assert.match(source, /context\.globalState\.update\(CLAUDE_QUOTA_STATE_KEY, state\)/);
@@ -56,6 +63,10 @@ test("activates eagerly and reconciles initial state without blocking commands",
   assert.doesNotMatch(source, /"workbench\.view\.extension\.deepcode"/);
   assert.doesNotMatch(source, /"antigravity\.(?:openAgent|toggleChatFocus)"/);
   assert.match(source, /registerCommand\(\s*AUXILIARY_BAR_TOGGLE_COMMAND/);
+  assert.match(codexAppServerSource, /require\("\.\.\/\.\.\/package\.json"\)/);
+  assert.match(codexAppServerSource, /version: EXTENSION_VERSION/);
+  assert.doesNotMatch(codexAppServerSource, /version:\s*"\d+\.\d+\.\d+"/);
+  assert.doesNotMatch(readme, /antigravity-ai-launcher-\d+\.\d+\.\d+\.vsix/);
   assert.match(source, /handleAuxiliaryBarToggle/);
   assert.match(source, /new CascadeVisibilityMonitor\(tracker, cascade\)/);
   assert.match(source, /typeof cascade\?\.getFocusState === "function"/);

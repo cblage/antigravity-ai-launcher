@@ -39,6 +39,8 @@ test("normalizes Antigravity Gemini 5h and weekly buckets", () => {
   assert.equal(snapshot.provider, "gemini");
   assert.equal(snapshot.fiveHour.usedPercent, 0.5499999999999972);
   assert.equal(snapshot.sevenDay.usedPercent, 28);
+  assert.equal(snapshot.fiveHour.durationMinutes, 300);
+  assert.equal(snapshot.sevenDay.durationMinutes, 10080);
   assert.equal(snapshot.fiveHour.resetAt.toISOString(), "2026-07-10T12:47:39.000Z");
 });
 
@@ -66,6 +68,7 @@ test("normalizes Codex primary and secondary windows by duration", () => {
   assert.equal(snapshot.fiveHour.usedPercent, 12);
   assert.equal(snapshot.sevenDay.usedPercent, 34);
   assert.equal(snapshot.fiveHour.remainingPercent, 88);
+  assert.equal(snapshot.sevenDay.durationMinutes, 10080);
 });
 
 test("normalizes only the main weekly Codex bucket when the 5h window is absent", () => {
@@ -110,6 +113,7 @@ test("normalizes only the main weekly Codex bucket when the 5h window is absent"
   assert.equal(snapshot.fiveHour, undefined);
   assert.equal(snapshot.sevenDay.usedPercent, 10);
   assert.equal(snapshot.sevenDay.remainingPercent, 90);
+  assert.equal(snapshot.sevenDay.durationMinutes, 10080);
 });
 
 test("normalizes Codex session-log fallback events", () => {
@@ -167,6 +171,7 @@ test("normalizes Claude utilization percentages", () => {
   assert.equal(snapshot.fiveHour.usedPercent, 41.5);
   assert.equal(snapshot.fiveHour.remainingPercent, 58.5);
   assert.equal(snapshot.sevenDay.usedPercent, 63.25);
+  assert.equal(snapshot.sevenDay.durationMinutes, 10080);
 });
 
 test("rejects incomplete provider payloads", () => {

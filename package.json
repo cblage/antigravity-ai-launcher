@@ -3,7 +3,7 @@
   "displayName": "Antigravity AI Launcher",
   "description": "Persistent launchers for Antigravity, Claude Code, Codex, DeepSeek, and Grok, plus active-provider quota gauges where applicable.",
   "publisher": "cblage",
-	"version": "0.3.72",
+  "version": "0.3.74",
   "license": "BSD-3-Clause",
   "engines": {
     "vscode": "^1.107.0"

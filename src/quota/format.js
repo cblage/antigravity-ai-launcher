@@ -21,6 +21,7 @@ const DEFAULT_USAGE_THRESHOLDS = Object.freeze({
 });
 const FILLED_GAUGE_ICON = "$(circle-filled)";
 const EMPTY_GAUGE_ICON = "$(circle)";
+const WEEKLY_WINDOW_MINUTES = 7 * 24 * 60;
 
 function miniBar(percent, slots = 5) {
   const safeSlots = Math.max(1, Math.floor(slots));
@@ -48,14 +49,64 @@ function statePrefix(options = {}) {
   return staleMarker;
 }
 
+function weeklyQuotaPace(window, observedAt) {
+  if (window?.disabled) {
+    return undefined;
+  }
+  const reference = observedAt instanceof Date ? observedAt : new Date(observedAt);
+  const resetAt = window?.resetAt instanceof Date
+    ? window.resetAt
+    : new Date(window?.resetAt);
+  const durationMinutes = Number(
+    window?.durationMinutes ?? WEEKLY_WINDOW_MINUTES
+  );
+  const usedPercent = Number(window?.usedPercent);
+  if (
+    Number.isNaN(reference.getTime())
+    || Number.isNaN(resetAt.getTime())
+    || !Number.isFinite(durationMinutes)
+    || durationMinutes <= 0
+    || !Number.isFinite(usedPercent)
+  ) {
+    return undefined;
+  }
+
+  const durationMs = durationMinutes * 60 * 1000;
+  const remainingMs = resetAt.getTime() - reference.getTime();
+  if (remainingMs <= 0 || remainingMs > durationMs) {
+    return undefined;
+  }
+
+  const elapsedPercent = Math.max(
+    0,
+    Math.min(100, (1 - remainingMs / durationMs) * 100)
+  );
+  const deltaPercentPoints = usedPercent - elapsedPercent;
+  return {
+    usedPercent,
+    elapsedPercent,
+    deltaPercentPoints,
+    overConsuming: deltaPercentPoints > 0
+  };
+}
+
+function weeklyPaceIcon(pace) {
+  if (!pace) {
+    return "";
+  }
+  return pace.overConsuming ? "$(warning)" : "$(pass-filled)";
+}
+
 function formatWindowGaugeText(label, window, options = {}) {
   const prefix = options.showStateIcons === false ? "" : statePrefix(options);
   const usedPercent = roundPercent(window.usedPercent);
   const percentText = formatPercent(usedPercent);
+  const paceIcon = weeklyPaceIcon(options.pace);
+  const suffix = paceIcon ? ` ${paceIcon}` : "";
   if (options.showBars === false) {
-    return `${prefix}${label} ${percentText}%`;
+    return `${prefix}${label} ${percentText}%${suffix}`;
   }
-  return `${prefix}${label} ${miniBar(usedPercent)} ${percentText}%`;
+  return `${prefix}${label} ${miniBar(usedPercent)} ${percentText}%${suffix}`;
 }
 
 function quotaWindowEntries(snapshot) {
@@ -80,10 +131,16 @@ function quotaWindowEntries(snapshot) {
 
 function formatGaugeText(snapshot, options = {}) {
   return quotaWindowEntries(snapshot)
-    .map((entry, index) => formatWindowGaugeText(entry.label, entry.window, {
-      ...options,
-      showStateIcons: index === 0 && options.showStateIcons !== false
-    }))
+    .map((entry, index) => {
+      const pace = entry.id === "sevenDay" && options.sidebarVisible !== false
+        ? weeklyQuotaPace(entry.window, snapshot.observedAt)
+        : undefined;
+      return formatWindowGaugeText(entry.label, entry.window, {
+        ...options,
+        pace,
+        showStateIcons: index === 0 && options.showStateIcons !== false
+      });
+    })
     .join(" · ");
 }
 
@@ -124,6 +181,18 @@ function formatWindowLine(label, window) {
   return `- **${label}:** ${window.usedPercent.toFixed(1)}% used · ${window.remainingPercent.toFixed(1)}% remaining${disabled} · resets ${formatDate(window.resetAt)}`;
 }
 
+function formatWeeklyPaceLine(pace) {
+  if (!pace) {
+    return undefined;
+  }
+  const state = pace.overConsuming ? "Over-consuming" : "In the green";
+  const difference = Math.abs(pace.deltaPercentPoints);
+  const comparison = difference < 0.05
+    ? "exactly on pace"
+    : `${difference.toFixed(1)} percentage points ${pace.overConsuming ? "over" : "under"} pace`;
+  return `- **Weekly pace:** ${state} — ${pace.usedPercent.toFixed(1)}% used vs ${pace.elapsedPercent.toFixed(1)}% of the window elapsed (${comparison}).`;
+}
+
 function formatGaugeTooltip(snapshot, options = {}) {
   const provider = PROVIDERS[snapshot.provider] || { label: snapshot.provider || "AI" };
   const sidebar = options.sidebarVisible === false
@@ -133,12 +202,20 @@ function formatGaugeTooltip(snapshot, options = {}) {
     ? `Stale after refresh error: ${options.error || "unknown error"}`
     : "Current";
 
+  const windowLines = quotaWindowEntries(snapshot).flatMap((entry) => {
+    const pace = entry.id === "sevenDay"
+      ? weeklyQuotaPace(entry.window, snapshot.observedAt)
+      : undefined;
+    return [
+      formatWindowLine(entry.tooltipLabel || entry.label, entry.window),
+      formatWeeklyPaceLine(pace)
+    ].filter(Boolean);
+  });
+
   return [
     `### ${provider.label} quota`,
     "",
-    ...quotaWindowEntries(snapshot).map((entry) =>
-      formatWindowLine(entry.tooltipLabel || entry.label, entry.window)
-    ),
+    ...windowLines,
     "",
     `- **State:** ${freshness}`,
     `- **Sidebar:** ${sidebar}`,
@@ -173,8 +250,10 @@ module.exports = {
   formatPercent,
   formatRefreshButtonLabel,
   formatWindowGaugeText,
+  formatWeeklyPaceLine,
   miniBar,
   quotaWindowEntries,
   shouldShowUsageGauges,
+  weeklyQuotaPace,
   windowSeverity
 };

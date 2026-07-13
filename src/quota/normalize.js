@@ -22,7 +22,13 @@ function asDate(value, epochUnit = "milliseconds") {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
-function createWindow({ usedPercent, remainingPercent, resetAt, disabled = false }) {
+function createWindow({
+  usedPercent,
+  remainingPercent,
+  resetAt,
+  durationMinutes,
+  disabled = false
+}) {
   const hasUsed = usedPercent !== undefined && usedPercent !== null;
   const hasRemaining = remainingPercent !== undefined && remainingPercent !== null;
   const used = hasUsed
@@ -31,11 +37,15 @@ function createWindow({ usedPercent, remainingPercent, resetAt, disabled = false
   const remaining = hasRemaining
     ? clampPercent(remainingPercent)
     : clampPercent(100 - used);
+  const duration = Number(durationMinutes);
 
   return {
     usedPercent: used,
     remainingPercent: remaining,
     resetAt: asDate(resetAt),
+    durationMinutes: Number.isFinite(duration) && duration > 0
+      ? duration
+      : undefined,
     disabled: Boolean(disabled)
   };
 }
@@ -66,11 +76,13 @@ function normalizeGeminiQuotaResponse(payload, observedAt = new Date()) {
     fiveHour: createWindow({
       remainingPercent: Number(fiveHour.remainingFraction) * 100,
       resetAt: fiveHour.resetTime,
+      durationMinutes: 300,
       disabled: fiveHour.disabled
     }),
     sevenDay: createWindow({
       remainingPercent: Number(sevenDay.remainingFraction) * 100,
       resetAt: sevenDay.resetTime,
+      durationMinutes: 10080,
       disabled: sevenDay.disabled
     })
   };
@@ -96,7 +108,8 @@ function normalizeCodexRateLimits(payload, observedAt = new Date(), source = "Co
     const resetEpoch = raw.resetsAt ?? raw.resets_at ?? raw.reset_at;
     return createWindow({
       usedPercent: raw.usedPercent ?? raw.used_percent,
-      resetAt: asDate(Number(resetEpoch), "seconds")
+      resetAt: asDate(Number(resetEpoch), "seconds"),
+      durationMinutes: window.minutes
     });
   }
 
@@ -148,11 +161,13 @@ function normalizeClaudeUsage(payload, observedAt = new Date(), source = "Anthro
     observedAt: asDate(observedAt),
     fiveHour: createWindow({
       usedPercent: payload.five_hour.utilization,
-      resetAt: payload.five_hour.resets_at
+      resetAt: payload.five_hour.resets_at,
+      durationMinutes: 300
     }),
     sevenDay: createWindow({
       usedPercent: payload.seven_day.utilization,
-      resetAt: payload.seven_day.resets_at
+      resetAt: payload.seven_day.resets_at,
+      durationMinutes: 10080
     })
   };
 }
