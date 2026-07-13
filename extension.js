@@ -20,6 +20,7 @@ const {
   formatLauncherTooltip,
   formatRefreshButtonLabel,
   formatWindowGaugeText,
+  quotaWindowEntries,
   shouldShowUsageGauges,
   windowSeverity
 } = require("./src/quota/format");
@@ -487,7 +488,9 @@ class QuotaGauge {
             this.showTransientFeedback(
               provider,
               "$(check)",
-              `${PROVIDERS[provider].label}'s 5h and 7d quota refreshed.`,
+              provider === "codex"
+                ? "Codex's weekly quota refreshed."
+                : `${PROVIDERS[provider].label}'s 5h and 7d quota refreshed.`,
               2500
             );
           } else {
@@ -604,23 +607,29 @@ class QuotaGauge {
       );
       tooltip.isTrusted = false;
 
+      const windowEntries = quotaWindowEntries(cached.snapshot);
       for (const [key, definition] of Object.entries(QUOTA_WINDOWS)) {
         const item = this.items[key];
-        const window = cached.snapshot[key];
+        const entry = windowEntries.find((candidate) => candidate.id === key);
+        if (!entry) {
+          item.hide();
+          continue;
+        }
+        const window = entry.window;
         item.backgroundColor = undefined;
         item.color = this.activeState.sidebarVisible
           ? new vscode.ThemeColor(ACTIVE_PROVIDER_COLOR)
           : undefined;
-        item.text = formatWindowGaugeText(definition.label, window, {
+        item.text = formatWindowGaugeText(entry.label || definition.label, window, {
           showBars: settings.showBars,
           sidebarVisible: this.activeState.sidebarVisible,
           stale,
-          showStateIcons: key === "fiveHour"
+          showStateIcons: entry === windowEntries[0]
         });
         item.name = refreshLabel;
         item.tooltip = tooltip;
         item.accessibilityInformation = {
-          label: `${metadata.label} ${definition.label} quota: ${Math.round(window.usedPercent)} percent used. Activate to refresh.`
+          label: `${metadata.label} ${entry.tooltipLabel || entry.label || definition.label} quota: ${Math.round(window.usedPercent)} percent used. Activate to refresh.`
         };
 
         const severity = windowSeverity(window);
@@ -643,7 +652,7 @@ class QuotaGauge {
     }
 
     if (!cached?.snapshot) {
-      const item = this.items.fiveHour;
+      const item = provider === "codex" ? this.items.sevenDay : this.items.fiveHour;
       const quotaUnavailable = Boolean(cached?.error);
       item.backgroundColor = quotaUnavailable
         ? new vscode.ThemeColor("statusBarItem.warningBackground")

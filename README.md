@@ -2,16 +2,23 @@
 
 A small local Antigravity IDE extension that keeps Antigravity, Claude Code,
 Codex, DeepSeek, and Grok launchers visible even when no editor is open, and shows
-separate 5h and 7d quota gauges for whichever quota-based provider is selected
-in the secondary sidebar. The gauges disappear whenever the sidebar is closed,
-and remain hidden while DeepSeek or Grok is selected because neither has a
-quota source configured in this launcher.
+the available quota gauges for whichever quota-based provider is selected in
+the secondary sidebar. Antigravity and Claude expose separate 5h and 7d gauges;
+Codex exposes only its main weekly gauge. The gauges disappear whenever the
+sidebar is closed, and remain hidden while DeepSeek or Grok is selected because
+neither has a quota source configured in this launcher.
 
 The gauges report **usage** rather than quota remaining:
 
 ```text
 [5h $(circle-filled)$(circle)$(circle)$(circle)$(circle) 01%]
 [7d $(circle-filled)$(circle-filled)$(circle)$(circle)$(circle) 28%]
+```
+
+Codex uses only the weekly form and never fabricates a removed 5h bucket:
+
+```text
+[7d $(circle-filled)$(circle)$(circle)$(circle)$(circle) 11%]
 ```
 
 Each five-position bar uses VS Code's filled and hollow circle Codicons
@@ -26,11 +33,10 @@ selected in the secondary sidebar uses Antigravity's focus/accent color. The VS
 Code extension API only permits warning and error status-bar backgrounds, so
 the active-state accent is applied to the label foreground.
 
-The normal 5h and 7d quota gauges use that same active-provider accent. Warning
-and error gauges retain Antigravity's native foreground/background pairing for
-readability.
+The visible quota gauges use that same active-provider accent. Warning and error
+gauges retain Antigravity's native foreground/background pairing for readability.
 
-It refreshes every minute. Both quota gauges are clickable and force an
+It refreshes every minute. Every visible quota gauge is clickable and forces an
 immediate refresh, as does **Antigravity AI Launcher: Refresh Active AI Quota**
 in the Command Palette. There is no persistent refresh widget. During a manual
 refresh, a normally hidden, one-glyph activity item appears immediately to the
@@ -39,8 +45,9 @@ success check. Both states use the same focus/accent color as the active
 provider and its gauges. The gauges remain visible and unchanged throughout. The
 activity item sits farthest left and therefore wraps out before either gauge if
 the refresh temporarily exceeds the available width. Further narrowing wraps
-the 5h gauge, then the 7d gauge. Each gauge independently receives the warning
-status-bar color at 70% usage and the error color at 90% usage.
+the 5h gauge, then the 7d gauge. Codex shows only the 7d gauge. Each gauge
+independently receives the warning status-bar color at 70% usage and the error
+color at 90% usage.
 If no quota snapshot can be loaded, the gauge collapses to
 `$(warning) Unable to load quota` with the native warning background; its
 tooltip retains the provider error and the item remains clickable to retry.
@@ -147,7 +154,7 @@ No extra account, API key, or hosted service is required.
 | --- | --- |
 | Antigravity | Antigravity's authenticated localhost `RetrieveUserQuotaSummary` endpoint, using its real `gemini-5h` and `gemini-weekly` buckets. |
 | Claude | Claude Code's local shared usage cache when no more than five minutes old; otherwise the existing Claude Code OAuth credential is used only for `https://api.anthropic.com/api/oauth/usage`. Live endpoint reads have a five-minute memory TTL. HTTP 429 responses honor numeric or HTTP-date `Retry-After`, default to a 15-minute backoff, and double repeated fallback backoffs up to one hour. |
-| Codex | The configured Codex CLI's `app-server` and `account/rateLimits/read`; if that is unavailable, the latest local Codex session rate-limit event is used. The extension honors Antigravity's `chatgpt.cliExecutable` setting, including the Codex.app binary. |
+| Codex | The configured Codex CLI's `app-server` and `account/rateLimits/read`; if that is unavailable, the latest main `codex` local session rate-limit event is used. The current weekly-only main bucket is shown and model-specific buckets such as Codex Spark are ignored. The extension honors Antigravity's `chatgpt.cliExecutable` setting, including the Codex.app binary. |
 | DeepSeek | No quota source. The launcher hides both gauges because DeepSeek usage is billed per token. |
 | Grok | No quota source. The launcher hides both gauges while Grok is active. |
 
@@ -165,7 +172,7 @@ extension does not change their settings automatically.
 
 | Setting | Default | Effect |
 | --- | --- | --- |
-| `antigravityAiLauncher.quota.enabled` | `true` | Shows the active quota-based provider's 5h and 7d gauges while the secondary sidebar is open. |
+| `antigravityAiLauncher.quota.enabled` | `true` | Shows the active provider's available gauges while the secondary sidebar is open: 5h and 7d for Antigravity/Claude, weekly only for Codex. |
 | `antigravityAiLauncher.quota.showBars` | `true` | Shows five-position filled-and-hollow circle Codicon bars alongside the percentages. |
 
 ## Test

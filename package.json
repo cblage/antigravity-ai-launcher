@@ -3,7 +3,7 @@
   "displayName": "Antigravity AI Launcher",
   "description": "Persistent launchers for Antigravity, Claude Code, Codex, DeepSeek, and Grok, plus active-provider quota gauges where applicable.",
   "publisher": "cblage",
-	"version": "0.3.71",
+	"version": "0.3.72",
   "license": "BSD-3-Clause",
   "engines": {
     "vscode": "^1.107.0"
@@ -79,12 +79,12 @@
         "antigravityAiLauncher.quota.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Show 5-hour and 7-day usage gauges for the selected AI provider while the secondary sidebar is open. Gauges are hidden for DeepSeek and Grok."
+          "description": "Show the selected provider's available usage gauges while the secondary sidebar is open. Antigravity and Claude expose 5-hour and 7-day gauges; Codex exposes its main weekly gauge. Gauges are hidden for DeepSeek and Grok."
         },
         "antigravityAiLauncher.quota.showBars": {
           "type": "boolean",
           "default": true,
-          "description": "Show five-position filled-and-hollow circle Codicon bars next to the 5-hour and 7-day percentages."
+          "description": "Show five-position filled-and-hollow circle Codicon bars next to available quota percentages."
         }
       }
     }

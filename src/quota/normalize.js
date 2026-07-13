@@ -78,11 +78,11 @@ function normalizeGeminiQuotaResponse(payload, observedAt = new Date()) {
 
 function normalizeCodexRateLimits(payload, observedAt = new Date(), source = "Codex app-server") {
   const limits = payload?.rateLimitsByLimitId?.codex || payload?.rateLimits || payload;
-  if (!limits?.primary || !limits?.secondary) {
-    throw new Error("Codex returned no primary/secondary rate limits.");
+  if (!limits?.primary) {
+    throw new Error("Codex returned no primary rate limit.");
   }
 
-  const windows = [limits.primary, limits.secondary].map((window) => ({
+  const windows = [limits.primary, limits.secondary].filter(Boolean).map((window) => ({
     raw: window,
     minutes: Number(
       window.windowDurationMins ??
@@ -91,9 +91,6 @@ function normalizeCodexRateLimits(payload, observedAt = new Date(), source = "Co
       0
     )
   }));
-  const fiveHour = windows.find((window) => window.minutes === 300) || windows[0];
-  const sevenDay = windows.find((window) => window.minutes === 10080) || windows[1];
-
   function normalizeWindow(window) {
     const raw = window.raw;
     const resetEpoch = raw.resetsAt ?? raw.resets_at ?? raw.reset_at;
@@ -103,11 +100,28 @@ function normalizeCodexRateLimits(payload, observedAt = new Date(), source = "Co
     });
   }
 
-  return {
+  const base = {
     provider: "codex",
     source,
     observedAt: asDate(observedAt),
-    plan: limits.planType || limits.plan_type,
+    plan: limits.planType || limits.plan_type
+  };
+
+  if (!limits.secondary) {
+    const primary = windows[0];
+    const key = primary.minutes === 10080 ? "sevenDay" : "fiveHour";
+    return {
+      ...base,
+      weeklyOnly: key === "sevenDay",
+      [key]: normalizeWindow(primary)
+    };
+  }
+
+  const fiveHour = windows.find((window) => window.minutes === 300) || windows[0];
+  const sevenDay = windows.find((window) => window.minutes === 10080) || windows[1];
+
+  return {
+    ...base,
     fiveHour: normalizeWindow(fiveHour),
     sevenDay: normalizeWindow(sevenDay)
   };
@@ -115,7 +129,8 @@ function normalizeCodexRateLimits(payload, observedAt = new Date(), source = "Co
 
 function normalizeCodexSessionEvent(event) {
   const limits = event?.payload?.rate_limits;
-  if (!limits?.primary || !limits?.secondary) {
+  const limitId = limits?.limitId ?? limits?.limit_id;
+  if (!limits?.primary || (limitId && limitId !== "codex")) {
     return undefined;
   }
   const observedAt = asDate(event.timestamp) || new Date();

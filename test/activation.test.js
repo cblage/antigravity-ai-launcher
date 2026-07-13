@@ -36,6 +36,8 @@ test("activates eagerly and reconciles initial state without blocking commands",
   assert.match(source, /registerSidebarMaximizeCommand\(context, tracker\)/);
   assert.match(source, /"\$\(warning\) Unable to load quota"/);
   assert.match(source, /quotaUnavailable\s*\?\s*new vscode\.ThemeColor\("statusBarItem\.warningBackground"\)/);
+  assert.match(source, /quotaWindowEntries\(cached\.snapshot\)/);
+  assert.match(source, /provider === "codex" \? this\.items\.sevenDay : this\.items\.fiveHour/);
   assert.match(source, /context\.globalState\.get\(CLAUDE_QUOTA_STATE_KEY\)/);
   assert.match(source, /context\.globalState\.update\(CLAUDE_QUOTA_STATE_KEY, state\)/);
   assert.ok(

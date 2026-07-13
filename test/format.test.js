@@ -103,8 +103,33 @@ test("names the refresh action for the selected provider", () => {
   );
   assert.equal(
     formatRefreshButtonLabel("codex"),
-    "Refresh Codex's 5h and 7d quota"
+    "Refresh Codex's weekly quota"
   );
+});
+
+test("renders a single weekly gauge for the new Codex quota shape", () => {
+  const codex = {
+    provider: "codex",
+    source: "Codex app-server",
+    observedAt: new Date("2026-07-13T03:43:02Z"),
+    weeklyOnly: true,
+    sevenDay: {
+      usedPercent: 10,
+      remainingPercent: 90,
+      resetAt: new Date("2026-07-19T18:43:34Z"),
+      disabled: false
+    }
+  };
+  const filled = "$(circle-filled)";
+  const empty = "$(circle)";
+
+  assert.equal(
+    formatGaugeText(codex),
+    `7d ${filled}${empty.repeat(4)} 10%`
+  );
+  const tooltip = formatGaugeTooltip(codex);
+  assert.match(tooltip, /\*\*Weekly:\*\* 10\.0% used/);
+  assert.doesNotMatch(tooltip, /\*\*5h:/);
 });
 
 test("does not add an icon when the sidebar is hidden", () => {
@@ -125,7 +150,7 @@ test("tooltip contains both windows, source, and stale state", () => {
   assert.match(tooltip, /\*\*7d:\*\* 28\.0% used/);
   assert.match(tooltip, /last-selected provider/);
   assert.match(tooltip, /offline/);
-  assert.match(tooltip, /Click either quota gauge to refresh now/);
+  assert.match(tooltip, /Click any quota gauge to refresh now/);
 });
 
 test("disabled windows do not trigger severity", () => {

@@ -58,13 +58,33 @@ function formatWindowGaugeText(label, window, options = {}) {
   return `${prefix}${label} ${miniBar(usedPercent)} ${percentText}%`;
 }
 
+function quotaWindowEntries(snapshot) {
+  if (Array.isArray(snapshot?.windows) && snapshot.windows.length > 0) {
+    return snapshot.windows.filter((entry) => entry?.window);
+  }
+  return [
+    {
+      id: "fiveHour",
+      label: "5h",
+      tooltipLabel: "5h",
+      window: snapshot?.fiveHour
+    },
+    {
+      id: "sevenDay",
+      label: "7d",
+      tooltipLabel: snapshot?.weeklyOnly ? "Weekly" : "7d",
+      window: snapshot?.sevenDay
+    }
+  ].filter((entry) => entry.window);
+}
+
 function formatGaugeText(snapshot, options = {}) {
-  const fiveHour = formatWindowGaugeText("5h", snapshot.fiveHour, options);
-  const sevenDay = formatWindowGaugeText("7d", snapshot.sevenDay, {
-    ...options,
-    showStateIcons: false
-  });
-  return `${fiveHour} · ${sevenDay}`;
+  return quotaWindowEntries(snapshot)
+    .map((entry, index) => formatWindowGaugeText(entry.label, entry.window, {
+      ...options,
+      showStateIcons: index === 0 && options.showStateIcons !== false
+    }))
+    .join(" · ");
 }
 
 function formatLauncherTooltip(provider, active = false) {
@@ -86,6 +106,9 @@ function shouldShowUsageGauges(provider, sidebarVisible = true) {
 
 function formatRefreshButtonLabel(provider, verb = "Refresh") {
   const metadata = PROVIDERS[provider] || { label: provider || "AI" };
+  if (provider === "codex") {
+    return `${verb} ${metadata.label}'s weekly quota`;
+  }
   return `${verb} ${metadata.label}'s 5h and 7d quota`;
 }
 
@@ -113,15 +136,16 @@ function formatGaugeTooltip(snapshot, options = {}) {
   return [
     `### ${provider.label} quota`,
     "",
-    formatWindowLine("5h", snapshot.fiveHour),
-    formatWindowLine("7d", snapshot.sevenDay),
+    ...quotaWindowEntries(snapshot).map((entry) =>
+      formatWindowLine(entry.tooltipLabel || entry.label, entry.window)
+    ),
     "",
     `- **State:** ${freshness}`,
     `- **Sidebar:** ${sidebar}`,
     `- **Source:** ${snapshot.source}`,
     `- **Checked:** ${formatDate(options.checkedAt || snapshot.observedAt)}`,
     "",
-    "Click either quota gauge to refresh now."
+    "Click any quota gauge to refresh now."
   ].join("\n");
 }
 
@@ -150,6 +174,7 @@ module.exports = {
   formatRefreshButtonLabel,
   formatWindowGaugeText,
   miniBar,
+  quotaWindowEntries,
   shouldShowUsageGauges,
   windowSeverity
 };
