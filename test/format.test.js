@@ -88,10 +88,11 @@ test("only shows usage gauges for active quota-based providers", () => {
   assert.equal(shouldShowUsageGauges("claude"), true);
   assert.equal(shouldShowUsageGauges("codex"), true);
   assert.equal(shouldShowUsageGauges("deepseek"), false);
-  assert.equal(shouldShowUsageGauges("grok"), false);
+  assert.equal(shouldShowUsageGauges("grok"), true);
   assert.equal(shouldShowUsageGauges("gemini", false), false);
   assert.equal(shouldShowUsageGauges("claude", false), false);
   assert.equal(shouldShowUsageGauges("codex", false), false);
+  assert.equal(shouldShowUsageGauges("grok", false), false);
 });
 
 test("names the refresh action for the selected provider", () => {
@@ -106,6 +107,10 @@ test("names the refresh action for the selected provider", () => {
   assert.equal(
     formatRefreshButtonLabel("codex"),
     "Refresh Codex's weekly quota"
+  );
+  assert.equal(
+    formatRefreshButtonLabel("grok"),
+    "Refresh Grok's weekly quota"
   );
 });
 
@@ -133,6 +138,28 @@ test("renders a single weekly gauge for the new Codex quota shape", () => {
   assert.match(tooltip, /\*\*Weekly:\*\* 10\.0% used/);
   assert.match(tooltip, /\*\*Weekly pace:\*\* Over-consuming/);
   assert.match(tooltip, /10\.0% used vs 5\.4% of the window elapsed/);
+  assert.doesNotMatch(tooltip, /\*\*5h:/);
+});
+
+test("renders Grok as a weekly-only provider", () => {
+  const grok = {
+    provider: "grok",
+    source: "Grok CLI billing",
+    observedAt: new Date("2026-07-15T12:00:00Z"),
+    weeklyOnly: true,
+    sevenDay: {
+      usedPercent: 1,
+      remainingPercent: 99,
+      resetAt: new Date("2026-07-19T05:05:41Z"),
+      durationMinutes: 10080,
+      disabled: false
+    }
+  };
+
+  assert.match(formatGaugeText(grok), /^7d .* 01%/);
+  const tooltip = formatGaugeTooltip(grok);
+  assert.match(tooltip, /### Grok quota/);
+  assert.match(tooltip, /\*\*Weekly:\*\* 1\.0% used/);
   assert.doesNotMatch(tooltip, /\*\*5h:/);
 });
 
@@ -188,7 +215,7 @@ test("omits weekly pace when timing data is invalid or expired", () => {
 });
 
 test("weekly pace rendering is provider-independent", () => {
-  for (const provider of ["gemini", "claude", "codex"]) {
+  for (const provider of ["gemini", "claude", "codex", "grok"]) {
     const providerSnapshot = {
       provider,
       observedAt: new Date("2026-07-04T12:00:00Z"),

@@ -44,9 +44,13 @@ test("activates eagerly and reconciles initial state without blocking commands",
   assert.match(source, /quotaWindowEntries\(cached\.snapshot\)/);
   assert.match(source, /key === "sevenDay"\s*\? weeklyQuotaPace/);
   assert.match(source, /pace\.overConsuming \? "Over-consuming" : "In the green"/);
-  assert.match(source, /provider === "codex" \? this\.items\.sevenDay : this\.items\.fiveHour/);
+  assert.match(source, /metadata\.weeklyOnly \? this\.items\.sevenDay : this\.items\.fiveHour/);
   assert.match(source, /context\.globalState\.get\(CLAUDE_QUOTA_STATE_KEY\)/);
   assert.match(source, /context\.globalState\.update\(CLAUDE_QUOTA_STATE_KEY, state\)/);
+  assert.match(source, /new GrokQuotaReader/);
+  assert.match(source, /getConfiguration\("grok"\)\.get\("cliPath", ""\)/);
+  assert.match(source, /context\.globalState\.get\(GROK_QUOTA_STATE_KEY\)/);
+  assert.match(source, /context\.globalState\.update\(GROK_QUOTA_STATE_KEY, state\)/);
   assert.ok(
     manifest.contributes.commands.some(
       ({ command }) =>

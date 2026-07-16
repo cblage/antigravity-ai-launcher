@@ -4,9 +4,9 @@ A small local Antigravity IDE extension that keeps Antigravity, Claude Code,
 Codex, DeepSeek, and Grok launchers visible even when no editor is open, and shows
 the available quota gauges for whichever quota-based provider is selected in
 the secondary sidebar. Antigravity and Claude expose separate 5h and 7d gauges;
-Codex exposes only its main weekly gauge. The gauges disappear whenever the
-sidebar is closed, and remain hidden while DeepSeek or Grok is selected because
-neither has a quota source configured in this launcher.
+Codex and Grok expose only their main weekly gauges. The gauges disappear
+whenever the sidebar is closed, and remain hidden while DeepSeek is selected
+because its usage is billed per token.
 
 The gauges report **usage** rather than quota remaining:
 
@@ -15,7 +15,7 @@ The gauges report **usage** rather than quota remaining:
 [7d $(circle-filled)$(circle-filled)$(circle)$(circle)$(circle) 28% $(pass-filled)]
 ```
 
-Codex uses only the weekly form and never fabricates a removed 5h bucket:
+Weekly-only providers use this form and never fabricate a 5h bucket:
 
 ```text
 [7d $(circle-filled)$(circle)$(circle)$(circle)$(circle) 11% $(warning)]
@@ -52,7 +52,7 @@ success check. Both states use the same focus/accent color as the active
 provider and its gauges. The gauges remain visible and unchanged throughout. The
 activity item sits farthest left and therefore wraps out before either gauge if
 the refresh temporarily exceeds the available width. Further narrowing wraps
-the 5h gauge, then the 7d gauge. Codex shows only the 7d gauge. Each gauge
+the 5h gauge, then the 7d gauge. Codex and Grok show only the 7d gauge. Each gauge
 independently receives the warning status-bar color at 70% usage and the error
 color at 90% usage.
 If no quota snapshot can be loaded, the gauge collapses to
@@ -65,12 +65,18 @@ so it stays grouped immediately to the left of Antigravity's priority-0
 immediately to the right of Grok.
 
 While the secondary sidebar is active, the global timer checks the selected
-provider every minute, but Claude live endpoint reads are limited to once per
-five minutes. A fresh Claude Code shared cache always wins and can satisfy
+provider every minute, but Claude live endpoint reads and Grok ACP billing
+probes are limited to once per five minutes. A fresh Claude Code shared cache
+always wins and can satisfy
 those checks without an endpoint request. The launcher also persists Claude's
 last good snapshot, last automatic attempt/error, and active rate-limit backoff
 in extension-global state, so installing a VSIX or reloading the window cannot
-reset the five-minute guard and immediately hit the endpoint again.
+reset the five-minute guard and immediately hit the endpoint again. Grok uses
+the same persisted last-good and attempt guard. Each Grok probe starts the
+official CLI only long enough to perform the ACP handshake and billing request,
+then terminates it; an authentication or CLI failure therefore cannot create a
+new process on every one-minute UI tick. Manual refresh bypasses the ordinary
+five-minute freshness/failure guard.
 
 ## Launchers
 
@@ -80,7 +86,7 @@ reset the five-minute guard and immediately hit the endpoint again.
 | Claude | `claude-vscode.sidebar.open` | Runs **Claude Code: Open in Side Bar**, matching the Actions search command exactly. |
 | Codex | `chatgpt.openSidebar` | Opens the Codex secondary sidebar. |
 | DeepSeek | `cblage.codewhale.openChat` | Opens the cblage CodeWhale extension in the secondary sidebar and hides the quota gauges. |
-| Grok | `grok.open` | Opens Grok in the secondary sidebar and hides the quota gauges. |
+| Grok | `grok.open` | Opens Grok in the secondary sidebar and shows its shared weekly quota gauge. |
 | `$(eye)` | `workbench.action.toggleMaximizedAuxiliaryBar` | Toggles maximize/restore while the secondary sidebar is open. When it is closed, opens the last selected provider (Antigravity by default) and maximizes it. |
 
 Antigravity and the `$(eye)` control are always visible. Claude, Codex,
@@ -163,13 +169,14 @@ No extra account, API key, or hosted service is required.
 | Claude | Claude Code's local shared usage cache when no more than five minutes old; otherwise the existing Claude Code OAuth credential is used only for `https://api.anthropic.com/api/oauth/usage`. Live endpoint reads have a five-minute memory TTL. HTTP 429 responses honor numeric or HTTP-date `Retry-After`, default to a 15-minute backoff, and double repeated fallback backoffs up to one hour. |
 | Codex | The configured Codex CLI's `app-server` and `account/rateLimits/read`; if that is unavailable, the latest main `codex` local session rate-limit event is used. The current weekly-only main bucket is shown and model-specific buckets such as Codex Spark are ignored. The extension honors Antigravity's `chatgpt.cliExecutable` setting, including the Codex.app binary. |
 | DeepSeek | No quota source. The launcher hides both gauges because DeepSeek usage is billed per token. |
-| Grok | No quota source. The launcher hides both gauges while Grok is active. |
+| Grok | The configured official Grok CLI's ACP stdio interface and `_x.ai/billing`. The shared weekly pool uses `creditUsagePercent` and `currentPeriod`; the probe performs no `session/new` or model request. The extension honors Grok's `grok.cliPath` setting, then checks `~/.grok/bin/grok`, then `PATH`. |
 
 The extension never logs, displays, or stores provider credentials. Antigravity's
 CSRF token is read from the local Antigravity language-server process and sent
 only back to an authenticated loopback port. The Claude token is read from the
 existing credentials file or macOS Keychain and sent only to Anthropic over
-HTTPS. Codex authentication remains inside the official Codex CLI.
+HTTPS. Codex and Grok authentication remain inside their official CLIs; the
+launcher never reads or stores Grok credential files.
 
 If Codex Pulse or Claude Control is also installed, their separate status-bar
 gauges can be disabled in Settings to avoid duplicate quota displays; this
@@ -179,7 +186,7 @@ extension does not change their settings automatically.
 
 | Setting | Default | Effect |
 | --- | --- | --- |
-| `antigravityAiLauncher.quota.enabled` | `true` | Shows the active provider's available gauges while the secondary sidebar is open: 5h and 7d for Antigravity/Claude, weekly only for Codex. |
+| `antigravityAiLauncher.quota.enabled` | `true` | Shows the active provider's available gauges while the secondary sidebar is open: 5h and 7d for Antigravity/Claude, weekly only for Codex/Grok. |
 | `antigravityAiLauncher.quota.showBars` | `true` | Shows five-position filled-and-hollow circle Codicon bars alongside the percentages. |
 
 ## Test
@@ -216,11 +223,15 @@ Window**.
 ## Compatibility
 
 This is intentionally a local macOS Antigravity integration. The provider
-commands, Antigravity workspace-state key, localhost quota endpoint, and Codex
-app-server protocol are integration surfaces owned by their respective apps.
+commands, Antigravity workspace-state key, localhost quota endpoint, Codex
+app-server protocol, and Grok ACP billing method are integration surfaces owned
+by their respective apps.
 Failures preserve the last good quota value and mark it stale rather than
 silently replacing it with zero. Manual Claude refreshes bypass ordinary
 freshness caching but never bypass an active rate-limit backoff; only a
-successful Claude endpoint response resets exponential backoff state.
+successful Claude endpoint response resets exponential backoff state. Grok
+rate-limit errors use the same bounded backoff principle, while ordinary Grok
+transport/configuration failures remain manually retryable and preserve only a
+last-good snapshot whose weekly period has not ended.
 
 See `THIRD_PARTY_NOTICES.md` for acknowledgements.

@@ -172,6 +172,52 @@ function normalizeClaudeUsage(payload, observedAt = new Date(), source = "Anthro
   };
 }
 
+function normalizeGrokBilling(payload, observedAt = new Date(), source = "Grok CLI billing") {
+  const config = payload?.config || payload;
+  const period = config?.currentPeriod;
+  if (period?.type !== "USAGE_PERIOD_TYPE_WEEKLY") {
+    throw new Error("Grok returned no weekly usage period.");
+  }
+
+  const periodEnd = asDate(period.end ?? config.billingPeriodEnd);
+  if (!periodEnd) {
+    throw new Error("Grok returned no valid weekly reset time.");
+  }
+
+  let usedPercent;
+  if (Object.hasOwn(config, "creditUsagePercent")) {
+    usedPercent = Number(config.creditUsagePercent);
+    if (!Number.isFinite(usedPercent)) {
+      throw new Error("Grok returned an invalid weekly usage percentage.");
+    }
+  } else {
+    // Grok omits creditUsagePercent at the start of a fresh weekly period.
+    usedPercent = 0;
+  }
+
+  const periodStart = asDate(period.start ?? config.billingPeriodStart);
+  const measuredDurationMinutes = periodStart
+    ? (periodEnd.getTime() - periodStart.getTime()) / 60000
+    : undefined;
+  const durationMinutes = Number.isFinite(measuredDurationMinutes)
+    && measuredDurationMinutes > 0
+    ? measuredDurationMinutes
+    : 10080;
+
+  return {
+    provider: "grok",
+    source,
+    observedAt: asDate(observedAt) || new Date(),
+    plan: payload?.subscription_tier ?? config.subscriptionTier,
+    weeklyOnly: true,
+    sevenDay: createWindow({
+      usedPercent,
+      resetAt: periodEnd,
+      durationMinutes
+    })
+  };
+}
+
 module.exports = {
   asDate,
   clampPercent,
@@ -179,5 +225,6 @@ module.exports = {
   normalizeClaudeUsage,
   normalizeCodexRateLimits,
   normalizeCodexSessionEvent,
-  normalizeGeminiQuotaResponse
+  normalizeGeminiQuotaResponse,
+  normalizeGrokBilling
 };

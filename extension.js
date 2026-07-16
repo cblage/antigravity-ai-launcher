@@ -26,6 +26,7 @@ const {
   windowSeverity
 } = require("./src/quota/format");
 const { GeminiQuotaReader } = require("./src/quota/gemini");
+const { GrokQuotaReader } = require("./src/quota/grok");
 const { STATUS_PRIORITIES } = require("./src/statusPriority");
 const { runFirstAvailable } = require("./src/commandRunner");
 const {
@@ -41,6 +42,7 @@ const REFRESH_INTERVAL_MS = 60000;
 const SPINNER_INTERVAL_MS = 80;
 const ACTIVE_PROVIDER_COLOR = "focusBorder";
 const CLAUDE_QUOTA_STATE_KEY = "claudeQuotaState.v1";
+const GROK_QUOTA_STATE_KEY = "grokQuotaState.v1";
 const SPINNER_FRAMES = Object.freeze([
   "⣾",
   "⣽",
@@ -489,8 +491,8 @@ class QuotaGauge {
             this.showTransientFeedback(
               provider,
               "$(check)",
-              provider === "codex"
-                ? "Codex's weekly quota refreshed."
+              PROVIDERS[provider].weeklyOnly
+                ? `${PROVIDERS[provider].label}'s weekly quota refreshed.`
                 : `${PROVIDERS[provider].label}'s 5h and 7d quota refreshed.`,
               2500
             );
@@ -657,7 +659,7 @@ class QuotaGauge {
     }
 
     if (!cached?.snapshot) {
-      const item = provider === "codex" ? this.items.sevenDay : this.items.fiveHour;
+      const item = metadata.weeklyOnly ? this.items.sevenDay : this.items.fiveHour;
       const quotaUnavailable = Boolean(cached?.error);
       item.backgroundColor = quotaUnavailable
         ? new vscode.ThemeColor("statusBarItem.warningBackground")
@@ -754,6 +756,13 @@ function activate(context) {
       persistedState: context.globalState.get(CLAUDE_QUOTA_STATE_KEY),
       persistState: (state) =>
         context.globalState.update(CLAUDE_QUOTA_STATE_KEY, state)
+    }),
+    grok: new GrokQuotaReader({
+      getConfiguredCommand: () =>
+        vscode.workspace.getConfiguration("grok").get("cliPath", ""),
+      persistedState: context.globalState.get(GROK_QUOTA_STATE_KEY),
+      persistState: (state) =>
+        context.globalState.update(GROK_QUOTA_STATE_KEY, state)
     })
   });
 

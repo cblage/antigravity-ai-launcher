@@ -6,7 +6,8 @@ const {
   normalizeClaudeUsage,
   normalizeCodexRateLimits,
   normalizeCodexSessionEvent,
-  normalizeGeminiQuotaResponse
+  normalizeGeminiQuotaResponse,
+  normalizeGrokBilling
 } = require("../src/quota/normalize");
 
 test("normalizes Antigravity Gemini 5h and weekly buckets", () => {
@@ -174,8 +175,82 @@ test("normalizes Claude utilization percentages", () => {
   assert.equal(snapshot.sevenDay.durationMinutes, 10080);
 });
 
+test("normalizes Grok's shared weekly billing period", () => {
+  const snapshot = normalizeGrokBilling({
+    config: {
+      creditUsagePercent: 1,
+      currentPeriod: {
+        type: "USAGE_PERIOD_TYPE_WEEKLY",
+        start: "2026-07-12T05:05:41.000673+00:00",
+        end: "2026-07-19T05:05:41.000673+00:00"
+      }
+    },
+    subscription_tier: "SuperGrok Heavy"
+  }, new Date("2026-07-15T12:00:00Z"));
+
+  assert.equal(snapshot.provider, "grok");
+  assert.equal(snapshot.source, "Grok CLI billing");
+  assert.equal(snapshot.plan, "SuperGrok Heavy");
+  assert.equal(snapshot.weeklyOnly, true);
+  assert.equal(snapshot.fiveHour, undefined);
+  assert.equal(snapshot.sevenDay.usedPercent, 1);
+  assert.equal(snapshot.sevenDay.remainingPercent, 99);
+  assert.equal(snapshot.sevenDay.durationMinutes, 10080);
+  assert.equal(
+    snapshot.sevenDay.resetAt.toISOString(),
+    "2026-07-19T05:05:41.000Z"
+  );
+});
+
+test("treats Grok's omitted fresh-period usage as zero", () => {
+  const snapshot = normalizeGrokBilling({
+    config: {
+      currentPeriod: {
+        type: "USAGE_PERIOD_TYPE_WEEKLY",
+        start: "2026-07-12T05:05:41Z",
+        end: "2026-07-19T05:05:41Z"
+      }
+    }
+  });
+
+  assert.equal(snapshot.sevenDay.usedPercent, 0);
+  assert.equal(snapshot.sevenDay.remainingPercent, 100);
+});
+
+test("rejects malformed Grok billing periods and usage", () => {
+  assert.throws(
+    () => normalizeGrokBilling({ config: {} }),
+    /weekly usage period/
+  );
+  assert.throws(
+    () => normalizeGrokBilling({
+      config: {
+        creditUsagePercent: "unknown",
+        currentPeriod: {
+          type: "USAGE_PERIOD_TYPE_WEEKLY",
+          end: "2026-07-19T05:05:41Z"
+        }
+      }
+    }),
+    /invalid weekly usage percentage/
+  );
+  assert.throws(
+    () => normalizeGrokBilling({
+      config: {
+        creditUsagePercent: 1,
+        currentPeriod: {
+          type: "USAGE_PERIOD_TYPE_WEEKLY",
+          end: "not-a-date"
+        }
+      }
+    }),
+    /valid weekly reset time/
+  );
+});
+
 test("rejects incomplete provider payloads", () => {
   assert.throws(() => normalizeGeminiQuotaResponse({}), /5h\/weekly/);
   assert.throws(() => normalizeCodexRateLimits({}), /primary rate limit/);
   assert.throws(() => normalizeClaudeUsage({}), /five_hour\/seven_day/);
+  assert.throws(() => normalizeGrokBilling({}), /weekly usage period/);
 });

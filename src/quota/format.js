@@ -2,7 +2,7 @@
 
 const PROVIDERS = Object.freeze({
   gemini: { label: "Antigravity", openLabel: "Antigravity" },
-  codex: { label: "Codex", openLabel: "Codex" },
+  codex: { label: "Codex", openLabel: "Codex", weeklyOnly: true },
   claude: { label: "Claude", openLabel: "Claude Code" },
   deepseek: {
     label: "DeepSeek",
@@ -12,7 +12,7 @@ const PROVIDERS = Object.freeze({
   grok: {
     label: "Grok",
     openLabel: "Grok",
-    showsUsageGauges: false
+    weeklyOnly: true
   }
 });
 const DEFAULT_USAGE_THRESHOLDS = Object.freeze({
@@ -163,7 +163,7 @@ function shouldShowUsageGauges(provider, sidebarVisible = true) {
 
 function formatRefreshButtonLabel(provider, verb = "Refresh") {
   const metadata = PROVIDERS[provider] || { label: provider || "AI" };
-  if (provider === "codex") {
+  if (metadata.weeklyOnly) {
     return `${verb} ${metadata.label}'s weekly quota`;
   }
   return `${verb} ${metadata.label}'s 5h and 7d quota`;
