@@ -33,6 +33,10 @@ test("maps Antigravity secondary-sidebar container IDs", () => {
     "grok"
   );
   assert.equal(
+    providerFromPanelId("workbench.view.extension.kimi-secondary-sidebar"),
+    "kimi"
+  );
+  assert.equal(
     providerFromPanelId("workbench.view.extension.deepcode"),
     undefined
   );
@@ -57,6 +61,18 @@ test("parses Grok as the active secondary-sidebar provider", () => {
   ].join("\n"));
   assert.deepEqual(state, {
     provider: "grok",
+    sidebarVisible: true,
+    recognizedPanel: true
+  });
+});
+
+test("parses Kimi as the active secondary-sidebar provider", () => {
+  const state = parseSqliteOutput([
+    "workbench.auxiliaryBar.hidden\tfalse",
+    "workbench.auxiliarybar.activepanelid\tworkbench.view.extension.kimi-secondary-sidebar"
+  ].join("\n"));
+  assert.deepEqual(state, {
+    provider: "kimi",
     sidebarVisible: true,
     recognizedPanel: true
   });

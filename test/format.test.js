@@ -13,6 +13,7 @@ const {
   formatWeeklyPaceLine,
   formatWindowGaugeText,
   miniBar,
+  quotaWindowEntries,
   shouldShowUsageGauges,
   weeklyQuotaPace,
   windowSeverity
@@ -68,6 +69,7 @@ test("uses terse, normalized provider launcher tooltips", () => {
   assert.equal(formatLauncherTooltip("claude"), "Open Claude Code");
   assert.equal(formatLauncherTooltip("deepseek"), "Open DeepSeek");
   assert.equal(formatLauncherTooltip("grok"), "Open Grok");
+  assert.equal(formatLauncherTooltip("kimi"), "Open Kimi Code");
   assert.equal(
     formatLauncherTooltip("claude", true),
     "Open Claude Code\n\nActive"
@@ -80,6 +82,7 @@ test("uses plain provider labels regardless of active state", () => {
   assert.equal(formatLauncherText("codex"), "Codex");
   assert.equal(formatLauncherText("deepseek"), "DeepSeek");
   assert.equal(formatLauncherText("grok"), "Grok");
+  assert.equal(formatLauncherText("kimi"), "Kimi");
   assert.equal(formatLauncherText("grok", true), "Grok");
 });
 
@@ -89,10 +92,12 @@ test("only shows usage gauges for active quota-based providers", () => {
   assert.equal(shouldShowUsageGauges("codex"), true);
   assert.equal(shouldShowUsageGauges("deepseek"), false);
   assert.equal(shouldShowUsageGauges("grok"), true);
+  assert.equal(shouldShowUsageGauges("kimi"), true);
   assert.equal(shouldShowUsageGauges("gemini", false), false);
   assert.equal(shouldShowUsageGauges("claude", false), false);
   assert.equal(shouldShowUsageGauges("codex", false), false);
   assert.equal(shouldShowUsageGauges("grok", false), false);
+  assert.equal(shouldShowUsageGauges("kimi", false), false);
 });
 
 test("names the refresh action for the selected provider", () => {
@@ -111,6 +116,10 @@ test("names the refresh action for the selected provider", () => {
   assert.equal(
     formatRefreshButtonLabel("grok"),
     "Refresh Grok's weekly quota"
+  );
+  assert.equal(
+    formatRefreshButtonLabel("kimi"),
+    "Refresh Kimi's 5h and 7d quota"
   );
 });
 
@@ -161,6 +170,59 @@ test("renders Grok as a weekly-only provider", () => {
   assert.match(tooltip, /### Grok quota/);
   assert.match(tooltip, /\*\*Weekly:\*\* 1\.0% used/);
   assert.doesNotMatch(tooltip, /\*\*5h:/);
+});
+
+test("adds Kimi Booster money to the shared tooltip without another gauge", () => {
+  const kimi = {
+    provider: "kimi",
+    source: "Kimi Code extension",
+    observedAt: new Date("2026-07-27T10:00:00Z"),
+    windows: [
+      {
+        id: "fiveHour",
+        label: "5h",
+        tooltipLabel: "5h",
+        window: {
+          usedPercent: 25,
+          remainingPercent: 75,
+          resetAt: undefined,
+          durationMinutes: 300,
+          disabled: false
+        }
+      },
+      {
+        id: "sevenDay",
+        label: "7d",
+        tooltipLabel: "Weekly",
+        window: {
+          usedPercent: 40,
+          remainingPercent: 60,
+          resetAt: new Date("2026-08-01T10:00:00Z"),
+          durationMinutes: 10080,
+          disabled: false
+        }
+      }
+    ],
+    extraUsage: {
+      balanceCents: 500,
+      totalCents: 1000,
+      monthlyChargeLimitEnabled: true,
+      monthlyChargeLimitCents: 2000,
+      monthlyUsedCents: 1500,
+      currency: "USD"
+    }
+  };
+
+  const tooltip = formatGaugeTooltip(kimi);
+  assert.match(tooltip, /### Kimi quota/);
+  assert.match(tooltip, /\*\*5h:\*\* 25\.0% used.*resets unknown/);
+  assert.match(tooltip, /\*\*Weekly:\*\* 40\.0% used/);
+  assert.match(tooltip, /\*\*Booster balance:\*\* \$5\.00 remaining of \$10\.00/);
+  assert.match(tooltip, /\*\*Monthly Booster spend:\*\* \$15\.00 of \$20\.00 cap/);
+  assert.equal(quotaWindowEntries(kimi).length, 2);
+
+  kimi.extraUsage.monthlyChargeLimitEnabled = false;
+  assert.match(formatGaugeTooltip(kimi), /\$15\.00 \(no monthly cap\)/);
 });
 
 test("compares weekly usage against elapsed quota-window time", () => {

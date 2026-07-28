@@ -13,6 +13,10 @@ const PROVIDERS = Object.freeze({
     label: "Grok",
     openLabel: "Grok",
     weeklyOnly: true
+  },
+  kimi: {
+    label: "Kimi",
+    openLabel: "Kimi Code"
   }
 });
 const DEFAULT_USAGE_THRESHOLDS = Object.freeze({
@@ -193,6 +197,45 @@ function formatWeeklyPaceLine(pace) {
   return `- **Weekly pace:** ${state} — ${pace.usedPercent.toFixed(1)}% used vs ${pace.elapsedPercent.toFixed(1)}% of the window elapsed (${comparison}).`;
 }
 
+function formatMoney(cents, currency) {
+  const amount = Number(cents) / 100;
+  const code = typeof currency === "string" ? currency.toUpperCase() : "";
+  if (!Number.isFinite(amount)) {
+    return undefined;
+  }
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${code || "currency units"}`;
+  }
+}
+
+function formatBoosterLines(extraUsage) {
+  if (!extraUsage) {
+    return [];
+  }
+  const balance = formatMoney(extraUsage.balanceCents, extraUsage.currency);
+  const total = formatMoney(extraUsage.totalCents, extraUsage.currency);
+  const monthlyUsed = formatMoney(extraUsage.monthlyUsedCents, extraUsage.currency);
+  if (!balance || !total || !monthlyUsed) {
+    return [];
+  }
+  const monthlyLimit = formatMoney(
+    extraUsage.monthlyChargeLimitCents,
+    extraUsage.currency
+  );
+  const monthlyLine = extraUsage.monthlyChargeLimitEnabled && monthlyLimit
+    ? `- **Monthly Booster spend:** ${monthlyUsed} of ${monthlyLimit} cap.`
+    : `- **Monthly Booster spend:** ${monthlyUsed} (no monthly cap).`;
+  return [
+    `- **Booster balance:** ${balance} remaining of ${total}.`,
+    monthlyLine
+  ];
+}
+
 function formatGaugeTooltip(snapshot, options = {}) {
   const provider = PROVIDERS[snapshot.provider] || { label: snapshot.provider || "AI" };
   const sidebar = options.sidebarVisible === false
@@ -211,11 +254,13 @@ function formatGaugeTooltip(snapshot, options = {}) {
       formatWeeklyPaceLine(pace)
     ].filter(Boolean);
   });
+  const boosterLines = formatBoosterLines(snapshot.extraUsage);
 
   return [
     `### ${provider.label} quota`,
     "",
     ...windowLines,
+    ...boosterLines,
     "",
     `- **State:** ${freshness}`,
     `- **Sidebar:** ${sidebar}`,
@@ -245,6 +290,7 @@ module.exports = {
   PROVIDERS,
   formatGaugeText,
   formatGaugeTooltip,
+  formatMoney,
   formatLauncherText,
   formatLauncherTooltip,
   formatPercent,

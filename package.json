@@ -1,9 +1,9 @@
 {
   "name": "antigravity-ai-launcher",
   "displayName": "Antigravity AI Launcher",
-  "description": "Persistent launchers for Antigravity, Claude Code, Codex, DeepSeek, and Grok, plus active-provider quota gauges where applicable.",
+  "description": "Persistent launchers for Antigravity, Claude Code, Codex, DeepSeek, Grok, and Kimi Code, plus active-provider quota gauges where applicable.",
   "publisher": "cblage",
-  "version": "0.3.75",
+  "version": "0.3.78",
   "license": "BSD-3-Clause",
   "engines": {
     "vscode": "^1.107.0"
@@ -17,7 +17,8 @@
     "codex",
     "claude",
     "deepseek",
-    "grok"
+    "grok",
+    "kimi"
   ],
   "extensionKind": [
     "ui"
@@ -63,6 +64,11 @@
         "category": "Antigravity AI Launcher"
       },
       {
+        "command": "antigravityAiLauncher.openKimi",
+        "title": "Open Kimi Code",
+        "category": "Antigravity AI Launcher"
+      },
+      {
         "command": "antigravityAiLauncher.toggleMaximizedSecondarySidebar",
         "title": "Open or Toggle Maximized Secondary Sidebar",
         "category": "Antigravity AI Launcher"
@@ -79,7 +85,7 @@
         "antigravityAiLauncher.quota.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Show the selected provider's available usage gauges while the secondary sidebar is open. Antigravity and Claude expose 5-hour and 7-day gauges; Codex and Grok expose their main weekly gauges. Gauges are hidden for DeepSeek."
+          "description": "Show the selected provider's available usage gauges while the secondary sidebar is open. Antigravity, Claude, and Kimi expose 5-hour and weekly gauges; Codex and Grok expose their main weekly gauges. Gauges are hidden for DeepSeek."
         },
         "antigravityAiLauncher.quota.showBars": {
           "type": "boolean",

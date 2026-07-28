@@ -218,6 +218,98 @@ function normalizeGrokBilling(payload, observedAt = new Date(), source = "Grok C
   };
 }
 
+function normalizeKimiManagedUsage(payload) {
+  if (payload?.kind !== "ok") {
+    throw new Error("Kimi returned no managed usage payload.");
+  }
+  const observedAt = asDate(payload.observedAt);
+  if (!observedAt) {
+    throw new Error("Kimi returned no valid usage observation time.");
+  }
+
+  const limits = Array.isArray(payload.limits) ? payload.limits : [];
+  const fiveHourRow = limits.find((row) => Number(row?.durationMinutes) === 300);
+  const weeklyLimit = limits.find((row) => Number(row?.durationMinutes) === 10080);
+  const fiveHour = normalizeKimiUsageRow(fiveHourRow, 300);
+  const sevenDay = normalizeKimiUsageRow(payload.summary, 10080)
+    || normalizeKimiUsageRow(weeklyLimit, 10080);
+
+  if (!fiveHour && !sevenDay) {
+    throw new Error("Kimi returned no usable 5h or weekly quota windows.");
+  }
+
+  const windows = [];
+  if (fiveHour) {
+    windows.push({
+      id: "fiveHour",
+      label: "5h",
+      tooltipLabel: "5h",
+      window: fiveHour
+    });
+  }
+  if (sevenDay) {
+    windows.push({
+      id: "sevenDay",
+      label: "7d",
+      tooltipLabel: "Weekly",
+      window: sevenDay
+    });
+  }
+
+  return {
+    provider: "kimi",
+    source: "Kimi Code extension",
+    observedAt,
+    weeklyOnly: !fiveHour && Boolean(sevenDay),
+    fiveHour,
+    sevenDay,
+    windows,
+    extraUsage: normalizeKimiExtraUsage(payload.extraUsage)
+  };
+}
+
+function normalizeKimiUsageRow(row, fallbackDurationMinutes) {
+  if (!row || !Number.isFinite(row.used) || !Number.isFinite(row.limit) || row.limit <= 0) {
+    return undefined;
+  }
+  const durationMinutes = Number.isFinite(row.durationMinutes) && row.durationMinutes > 0
+    ? row.durationMinutes
+    : fallbackDurationMinutes;
+  return createWindow({
+    usedPercent: row.used / row.limit * 100,
+    resetAt: row.resetAt,
+    durationMinutes
+  });
+}
+
+function normalizeKimiExtraUsage(extraUsage) {
+  if (!extraUsage || typeof extraUsage !== "object") {
+    return undefined;
+  }
+  const numericFields = [
+    "balanceCents",
+    "totalCents",
+    "monthlyChargeLimitCents",
+    "monthlyUsedCents"
+  ];
+  if (
+    numericFields.some((field) => !Number.isFinite(extraUsage[field]))
+    || typeof extraUsage.monthlyChargeLimitEnabled !== "boolean"
+    || typeof extraUsage.currency !== "string"
+    || extraUsage.currency.length === 0
+  ) {
+    return undefined;
+  }
+  return {
+    balanceCents: extraUsage.balanceCents,
+    totalCents: extraUsage.totalCents,
+    monthlyChargeLimitEnabled: extraUsage.monthlyChargeLimitEnabled,
+    monthlyChargeLimitCents: extraUsage.monthlyChargeLimitCents,
+    monthlyUsedCents: extraUsage.monthlyUsedCents,
+    currency: extraUsage.currency
+  };
+}
+
 module.exports = {
   asDate,
   clampPercent,
@@ -226,5 +318,6 @@ module.exports = {
   normalizeCodexRateLimits,
   normalizeCodexSessionEvent,
   normalizeGeminiQuotaResponse,
-  normalizeGrokBilling
+  normalizeGrokBilling,
+  normalizeKimiManagedUsage
 };

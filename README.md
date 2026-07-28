@@ -1,12 +1,13 @@
 # Antigravity AI Launcher
 
 A small local Antigravity IDE extension that keeps Antigravity, Claude Code,
-Codex, DeepSeek, and Grok launchers visible even when no editor is open, and shows
+Codex, DeepSeek, Grok, and Kimi Code launchers visible even when no editor is
+open, and shows
 the available quota gauges for whichever quota-based provider is selected in
-the secondary sidebar. Antigravity and Claude expose separate 5h and 7d gauges;
-Codex and Grok expose only their main weekly gauges. The gauges disappear
-whenever the sidebar is closed, and remain hidden while DeepSeek is selected
-because its usage is billed per token.
+the secondary sidebar. Antigravity, Claude, and Kimi expose separate 5h and
+weekly gauges; Codex and Grok expose only their main weekly gauges. The gauges
+disappear whenever the sidebar is closed, and remain hidden while DeepSeek is
+selected because its usage is billed per token.
 
 The gauges report **usage** rather than quota remaining:
 
@@ -62,11 +63,11 @@ tooltip retains the provider error and the item remains clickable to retry.
 The complete activity/gauge/launcher cluster uses priorities 0.7 through 0.025,
 so it stays grouped immediately to the left of Antigravity's priority-0
 **Antigravity - Settings** item. The always-visible `$(eye)` control sits
-immediately to the right of Grok.
+immediately to the right of Kimi.
 
 While the secondary sidebar is active, the global timer checks the selected
-provider every minute, but Claude live endpoint reads and Grok ACP billing
-probes are limited to once per five minutes. A fresh Claude Code shared cache
+provider every minute, but Claude and Kimi live endpoint reads and Grok ACP
+billing probes are limited to once per five minutes. A fresh Claude Code shared cache
 always wins and can satisfy
 those checks without an endpoint request. The launcher also persists Claude's
 last good snapshot, last automatic attempt/error, and active rate-limit backoff
@@ -87,10 +88,11 @@ five-minute freshness/failure guard.
 | Codex | `chatgpt.openSidebar` | Opens the Codex secondary sidebar. |
 | DeepSeek | `cblage.codewhale.openChat` | Opens the cblage CodeWhale extension in the secondary sidebar and hides the quota gauges. |
 | Grok | `grok.open` | Opens Grok in the secondary sidebar and shows its shared weekly quota gauge. |
+| Kimi | `kimi.openInSideBar` | Enables Kimi Code's secondary-sidebar setting globally, opens Kimi there, and shows its 5h and weekly quota gauges. |
 | `$(eye)` | `workbench.action.toggleMaximizedAuxiliaryBar` | Toggles maximize/restore while the secondary sidebar is open. When it is closed, opens the last selected provider (Antigravity by default) and maximizes it. |
 
 Antigravity and the `$(eye)` control are always visible. Claude, Codex,
-DeepSeek, and Grok are shown only while their corresponding extensions are
+DeepSeek, Grok, and Kimi are shown only while their corresponding extensions are
 installed and enabled. The status bar updates immediately when an extension is
 installed, uninstalled, enabled, or disabled. If the last selected provider is
 no longer available, the eye control falls back to Antigravity.
@@ -144,6 +146,7 @@ Recognized containers are:
 | Codex | `workbench.view.extension.codexSecondaryViewContainer` |
 | DeepSeek | `workbench.view.extension.cblage-codewhale` |
 | Grok | `workbench.view.extension.grokSidebar` |
+| Kimi | `workbench.view.extension.kimi-secondary-sidebar` |
 
 If the secondary sidebar is hidden, no launcher is marked active and all gauges
 are hidden. The last-selected provider's quota stays cached so reopening it can
@@ -170,13 +173,15 @@ No extra account, API key, or hosted service is required.
 | Codex | The configured Codex CLI's `app-server` and `account/rateLimits/read`; if that is unavailable, the latest main `codex` local session rate-limit event is used. The current weekly-only main bucket is shown and model-specific buckets such as Codex Spark are ignored. The extension honors Antigravity's `chatgpt.cliExecutable` setting, including the Codex.app binary. |
 | DeepSeek | No quota source. The launcher hides both gauges because DeepSeek usage is billed per token. |
 | Grok | The configured official Grok CLI's ACP stdio interface and `_x.ai/billing`. The shared weekly pool uses `creditUsagePercent` and `currentPeriod`; the probe performs no `session/new` or model request. The extension honors Grok's `grok.cliPath` setting, then checks `~/.grok/bin/grok`, then `PATH`. |
+| Kimi | Kimi Code's hidden `_kimi.getManagedUsage` command. Kimi retains its OAuth credentials and returns only versioned, JSON-safe quota windows and optional Booster wallet totals. The launcher shows the 5h and weekly windows and keeps Booster balance/monthly spend in the shared tooltip. |
 
 The extension never logs, displays, or stores provider credentials. Antigravity's
 CSRF token is read from the local Antigravity language-server process and sent
 only back to an authenticated loopback port. The Claude token is read from the
 existing credentials file or macOS Keychain and sent only to Anthropic over
-HTTPS. Codex and Grok authentication remain inside their official CLIs; the
-launcher never reads or stores Grok credential files.
+HTTPS. Codex and Grok authentication remain inside their official CLIs, and
+Kimi authentication remains inside Kimi Code; the launcher never reads or
+stores their credential files.
 
 If Codex Pulse or Claude Control is also installed, their separate status-bar
 gauges can be disabled in Settings to avoid duplicate quota displays; this
@@ -186,7 +191,7 @@ extension does not change their settings automatically.
 
 | Setting | Default | Effect |
 | --- | --- | --- |
-| `antigravityAiLauncher.quota.enabled` | `true` | Shows the active provider's available gauges while the secondary sidebar is open: 5h and 7d for Antigravity/Claude, weekly only for Codex/Grok. |
+| `antigravityAiLauncher.quota.enabled` | `true` | Shows the active provider's available gauges while the secondary sidebar is open: 5h and weekly for Antigravity/Claude/Kimi, weekly only for Codex/Grok, and none for DeepSeek. |
 | `antigravityAiLauncher.quota.showBars` | `true` | Shows five-position filled-and-hollow circle Codicon bars alongside the percentages. |
 
 ## Test
@@ -224,8 +229,8 @@ Window**.
 
 This is intentionally a local macOS Antigravity integration. The provider
 commands, Antigravity workspace-state key, localhost quota endpoint, Codex
-app-server protocol, and Grok ACP billing method are integration surfaces owned
-by their respective apps.
+app-server protocol, Grok ACP billing method, and Kimi sidebar/managed-usage
+commands are integration surfaces owned by their respective apps.
 Failures preserve the last good quota value and mark it stale rather than
 silently replacing it with zero. Manual Claude refreshes bypass ordinary
 freshness caching but never bypass an active rate-limit backoff; only a

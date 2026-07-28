@@ -15,7 +15,8 @@ const PANEL_TO_PROVIDER = Object.freeze({
   "workbench.view.extension.codexSecondaryViewContainer": "codex",
   "workbench.view.extension.claude-sidebar-secondary": "claude",
   "workbench.view.extension.cblage-codewhale": "deepseek",
-  "workbench.view.extension.grokSidebar": "grok"
+  "workbench.view.extension.grokSidebar": "grok",
+  "workbench.view.extension.kimi-secondary-sidebar": "kimi"
 });
 
 const QUERY = [

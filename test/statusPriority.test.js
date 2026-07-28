@@ -14,6 +14,7 @@ test("keeps the complete launcher cluster immediately left of Antigravity Settin
     codex: 0.2,
     deepseek: 0.1,
     grok: 0.05,
+    kimi: 0.04,
     sidebarMaximize: 0.025
   });
 });

@@ -4,7 +4,8 @@ const PROVIDER_EXTENSION_IDS = Object.freeze({
   claude: "anthropic.claude-code",
   codex: "openai.chatgpt",
   deepseek: "cblage.codewhale-vscode",
-  grok: "pawelhuryn.grok-vscode-phuryn"
+  grok: "pawelhuryn.grok-vscode-phuryn",
+  kimi: "moonshot-ai.kimi-code"
 });
 
 function isProviderAvailable(provider, getExtension) {

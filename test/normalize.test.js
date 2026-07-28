@@ -7,7 +7,8 @@ const {
   normalizeCodexRateLimits,
   normalizeCodexSessionEvent,
   normalizeGeminiQuotaResponse,
-  normalizeGrokBilling
+  normalizeGrokBilling,
+  normalizeKimiManagedUsage
 } = require("../src/quota/normalize");
 
 test("normalizes Antigravity Gemini 5h and weekly buckets", () => {
@@ -217,6 +218,111 @@ test("treats Grok's omitted fresh-period usage as zero", () => {
   assert.equal(snapshot.sevenDay.remainingPercent, 100);
 });
 
+test("normalizes Kimi 5h, weekly, and Booster usage", () => {
+  const snapshot = normalizeKimiManagedUsage({
+    schemaVersion: 1,
+    kind: "ok",
+    observedAt: "2026-07-27T10:00:00Z",
+    summary: {
+      label: "Weekly limit",
+      used: 400,
+      limit: 1000,
+      durationMinutes: 10080,
+      resetAt: "2026-08-01T10:00:00Z"
+    },
+    limits: [
+      {
+        label: "5h limit",
+        used: 25,
+        limit: 100,
+        durationMinutes: 300,
+        resetAt: "2026-07-27T14:00:00Z"
+      }
+    ],
+    extraUsage: {
+      balanceCents: 500,
+      totalCents: 1000,
+      monthlyChargeLimitEnabled: true,
+      monthlyChargeLimitCents: 2000,
+      monthlyUsedCents: 1500,
+      currency: "USD"
+    }
+  });
+
+  assert.equal(snapshot.provider, "kimi");
+  assert.equal(snapshot.source, "Kimi Code extension");
+  assert.equal(snapshot.fiveHour.usedPercent, 25);
+  assert.equal(snapshot.sevenDay.usedPercent, 40);
+  assert.equal(snapshot.fiveHour.resetAt.toISOString(), "2026-07-27T14:00:00.000Z");
+  assert.equal(snapshot.sevenDay.durationMinutes, 10080);
+  assert.deepEqual(snapshot.windows.map(({ id, tooltipLabel }) => ({ id, tooltipLabel })), [
+    { id: "fiveHour", tooltipLabel: "5h" },
+    { id: "sevenDay", tooltipLabel: "Weekly" }
+  ]);
+  assert.deepEqual(snapshot.extraUsage, {
+    balanceCents: 500,
+    totalCents: 1000,
+    monthlyChargeLimitEnabled: true,
+    monthlyChargeLimitCents: 2000,
+    monthlyUsedCents: 1500,
+    currency: "USD"
+  });
+});
+
+test("accepts either Kimi window and does not parse reset hints", () => {
+  const weekly = normalizeKimiManagedUsage({
+    kind: "ok",
+    observedAt: "2026-07-27T10:00:00Z",
+    summary: {
+      label: "Weekly limit",
+      used: 10,
+      limit: 100,
+      durationMinutes: 10080,
+      resetHint: "resets in 4d"
+    },
+    limits: [],
+    extraUsage: null
+  });
+  assert.equal(weekly.weeklyOnly, true);
+  assert.equal(weekly.fiveHour, undefined);
+  assert.equal(weekly.sevenDay.resetAt, undefined);
+  assert.equal(weekly.windows.length, 1);
+
+  const fiveHour = normalizeKimiManagedUsage({
+    kind: "ok",
+    observedAt: "2026-07-27T10:00:00Z",
+    summary: null,
+    limits: [
+      {
+        label: "5h limit",
+        used: 20,
+        limit: 100,
+        durationMinutes: 300
+      }
+    ],
+    extraUsage: { currency: "USD" }
+  });
+  assert.equal(fiveHour.fiveHour.usedPercent, 20);
+  assert.equal(fiveHour.sevenDay, undefined);
+  assert.equal(fiveHour.extraUsage, undefined);
+});
+
+test("rejects Kimi payloads without a valid observation or usable window", () => {
+  assert.throws(
+    () => normalizeKimiManagedUsage({ kind: "ok", observedAt: "invalid" }),
+    /observation time/
+  );
+  assert.throws(
+    () => normalizeKimiManagedUsage({
+      kind: "ok",
+      observedAt: "2026-07-27T10:00:00Z",
+      summary: { used: 1, limit: 0 },
+      limits: [{ used: NaN, limit: 100, durationMinutes: 300 }]
+    }),
+    /no usable 5h or weekly/
+  );
+});
+
 test("rejects malformed Grok billing periods and usage", () => {
   assert.throws(
     () => normalizeGrokBilling({ config: {} }),
@@ -253,4 +359,5 @@ test("rejects incomplete provider payloads", () => {
   assert.throws(() => normalizeCodexRateLimits({}), /primary rate limit/);
   assert.throws(() => normalizeClaudeUsage({}), /five_hour\/seven_day/);
   assert.throws(() => normalizeGrokBilling({}), /weekly usage period/);
+  assert.throws(() => normalizeKimiManagedUsage({}), /managed usage payload/);
 });

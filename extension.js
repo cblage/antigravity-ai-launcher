@@ -27,6 +27,7 @@ const {
 } = require("./src/quota/format");
 const { GeminiQuotaReader } = require("./src/quota/gemini");
 const { GrokQuotaReader } = require("./src/quota/grok");
+const { KimiQuotaReader } = require("./src/quota/kimi");
 const { STATUS_PRIORITIES } = require("./src/statusPriority");
 const { runFirstAvailable } = require("./src/commandRunner");
 const {
@@ -37,6 +38,9 @@ const {
   isProviderAvailable,
   renderProviderAvailability
 } = require("./src/providerAvailability");
+const {
+  ensureProviderSecondarySidebar
+} = require("./src/providerSidebar");
 
 const REFRESH_INTERVAL_MS = 60000;
 const SPINNER_INTERVAL_MS = 80;
@@ -87,6 +91,9 @@ const TARGET_COMMANDS = Object.freeze({
   grok: [
     "grok.open"
   ],
+  kimi: [
+    "kimi.openInSideBar"
+  ],
   claudeSidebar: [
     "claude-vscode.sidebar.open"
   ]
@@ -95,7 +102,8 @@ const TARGET_EXTENSIONS = Object.freeze({
   claude: [PROVIDER_EXTENSION_IDS.claude],
   codex: [PROVIDER_EXTENSION_IDS.codex],
   deepseek: [PROVIDER_EXTENSION_IDS.deepseek],
-  grok: [PROVIDER_EXTENSION_IDS.grok]
+  grok: [PROVIDER_EXTENSION_IDS.grok],
+  kimi: [PROVIDER_EXTENSION_IDS.kimi]
 });
 const SIDEBAR_MAXIMIZE_BUTTON = Object.freeze({
   id: "antigravityAiLauncher.button.sidebarMaximize",
@@ -145,6 +153,14 @@ const LAUNCHER_BUTTONS = Object.freeze({
     tooltip: formatLauncherTooltip("grok"),
     priority: STATUS_PRIORITIES.grok,
     command: "antigravityAiLauncher.openGrok"
+  },
+  kimi: {
+    id: "antigravityAiLauncher.button.kimi",
+    text: formatLauncherText("kimi"),
+    name: "Open Kimi Code",
+    tooltip: formatLauncherTooltip("kimi"),
+    priority: STATUS_PRIORITIES.kimi,
+    command: "antigravityAiLauncher.openKimi"
   }
 });
 
@@ -188,6 +204,32 @@ async function executeFirstAvailable(label, candidates, options = {}) {
 async function executeProviderOpen(tracker, label, provider, candidates) {
   const previousState = { ...tracker.state };
   const generation = tracker.setOptimistic(provider);
+  try {
+    await ensureProviderSecondarySidebar(provider, {
+      getConfiguration: (section) =>
+        vscode.workspace.getConfiguration(section),
+      configurationTarget: vscode.ConfigurationTarget.Global
+    });
+  } catch (error) {
+    tracker.cancelIntent(generation, previousState);
+    const detail = error instanceof Error ? error.message : String(error);
+    void vscode.window.showErrorMessage(`Could not open ${label}: ${detail}`);
+    return {
+      executed: false,
+      reason: "configuration-error",
+      target: undefined,
+      error,
+      generation
+    };
+  }
+  if (tracker.stateGeneration !== generation) {
+    return {
+      executed: false,
+      reason: "superseded",
+      target: undefined,
+      generation
+    };
+  }
   const result = await executeFirstAvailable(label, candidates, {
     extensionIds: TARGET_EXTENSIONS[provider],
     shouldExecute: () => tracker.stateGeneration === generation,
@@ -763,6 +805,11 @@ function activate(context) {
       persistedState: context.globalState.get(GROK_QUOTA_STATE_KEY),
       persistState: (state) =>
         context.globalState.update(GROK_QUOTA_STATE_KEY, state)
+    }),
+    kimi: new KimiQuotaReader({
+      getExtension: (id) => vscode.extensions.getExtension(id),
+      getCommands: () => vscode.commands.getCommands(false),
+      executeCommand: (command) => vscode.commands.executeCommand(command)
     })
   });
 
@@ -805,6 +852,14 @@ function activate(context) {
     "Grok",
     "grok",
     TARGET_COMMANDS.grok
+  );
+  registerProviderLauncherCommand(
+    context,
+    tracker,
+    "antigravityAiLauncher.openKimi",
+    "Kimi Code",
+    "kimi",
+    TARGET_COMMANDS.kimi
   );
   registerProviderLauncherCommand(
     context,

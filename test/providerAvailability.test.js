@@ -13,7 +13,8 @@ test("maps optional providers to their exact extension identifiers", () => {
     claude: "anthropic.claude-code",
     codex: "openai.chatgpt",
     deepseek: "cblage.codewhale-vscode",
-    grok: "pawelhuryn.grok-vscode-phuryn"
+    grok: "pawelhuryn.grok-vscode-phuryn",
+    kimi: "moonshot-ai.kimi-code"
   });
 });
 
@@ -32,6 +33,7 @@ test("optional providers require an installed and enabled extension", () => {
   assert.equal(isProviderAvailable("codex", getExtension), true);
   assert.equal(isProviderAvailable("deepseek", getExtension), false);
   assert.equal(isProviderAvailable("grok", getExtension), false);
+  assert.equal(isProviderAvailable("kimi", getExtension), false);
 });
 
 test("availability rendering shows and hides existing status items", () => {
@@ -43,7 +45,8 @@ test("availability rendering shows and hides existing status items", () => {
   const buttons = {
     gemini: button("gemini"),
     claude: button("claude"),
-    grok: button("grok")
+    grok: button("grok"),
+    kimi: button("kimi")
   };
 
   renderProviderAvailability(
@@ -53,6 +56,7 @@ test("availability rendering shows and hides existing status items", () => {
   assert.deepEqual(calls, [
     "gemini:show",
     "claude:show",
-    "grok:hide"
+    "grok:hide",
+    "kimi:hide"
   ]);
 });

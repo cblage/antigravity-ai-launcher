@@ -18,6 +18,10 @@ test("activates eagerly and reconciles initial state without blocking commands",
     path.join(__dirname, "..", "src", "quota", "codexAppServer.js"),
     "utf8"
   );
+  const kimiSource = fs.readFileSync(
+    path.join(__dirname, "..", "src", "quota", "kimi.js"),
+    "utf8"
+  );
   const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
   assert.match(source, /function activate\(context\)/);
   assert.doesNotMatch(source, /async function activate\(context\)/);
@@ -28,10 +32,12 @@ test("activates eagerly and reconciles initial state without blocking commands",
   assert.match(source, /"cblage\.codewhale\.openChat"/);
   assert.match(source, /"workbench\.view\.extension\.cblage-codewhale"/);
   assert.match(source, /"grok\.open"/);
+  assert.match(source, /"kimi\.openInSideBar"/);
   assert.match(source, /claude: \[PROVIDER_EXTENSION_IDS\.claude\]/);
   assert.match(source, /codex: \[PROVIDER_EXTENSION_IDS\.codex\]/);
   assert.match(source, /deepseek: \[PROVIDER_EXTENSION_IDS\.deepseek\]/);
   assert.match(source, /grok: \[PROVIDER_EXTENSION_IDS\.grok\]/);
+  assert.match(source, /kimi: \[PROVIDER_EXTENSION_IDS\.kimi\]/);
   assert.match(source, /vscode\.extensions\.getExtension\(id\)/);
   assert.match(source, /await extension\.activate\(\)/);
   assert.match(source, /vscode\.extensions\.onDidChange\(updateProviderAvailability\)/);
@@ -51,18 +57,33 @@ test("activates eagerly and reconciles initial state without blocking commands",
   assert.match(source, /getConfiguration\("grok"\)\.get\("cliPath", ""\)/);
   assert.match(source, /context\.globalState\.get\(GROK_QUOTA_STATE_KEY\)/);
   assert.match(source, /context\.globalState\.update\(GROK_QUOTA_STATE_KEY, state\)/);
+  assert.match(source, /new KimiQuotaReader/);
+  assert.match(source, /getCommands: \(\) => vscode\.commands\.getCommands\(false\)/);
+  assert.match(source, /executeCommand: \(command\) => vscode\.commands\.executeCommand\(command\)/);
+  assert.match(kimiSource, /"_kimi\.getManagedUsage"/);
+  assert.match(kimiSource, /schemaVersion/);
+  assert.doesNotMatch(kimiSource, /credentials|accessToken|Authorization/);
   assert.ok(
     manifest.contributes.commands.some(
       ({ command }) =>
         command === "antigravityAiLauncher.toggleMaximizedSecondarySidebar"
     )
   );
+  assert.equal(manifest.extensionDependencies, undefined);
   assert.match(activeProviderSource, /"workbench\.view\.extension\.grokSidebar"/);
+  assert.match(activeProviderSource, /"workbench\.view\.extension\.kimi-secondary-sidebar"/);
   assert.ok(
     manifest.contributes.commands.some(
       ({ command }) => command === "antigravityAiLauncher.openGrok"
     )
   );
+  assert.ok(
+    manifest.contributes.commands.some(
+      ({ command }) => command === "antigravityAiLauncher.openKimi"
+    )
+  );
+  assert.match(source, /ensureProviderSecondarySidebar\(provider/);
+  assert.match(source, /vscode\.ConfigurationTarget\.Global/);
   assert.doesNotMatch(source, /"deepcode\.openView"/);
   assert.doesNotMatch(source, /"workbench\.view\.extension\.deepcode"/);
   assert.doesNotMatch(source, /"antigravity\.(?:openAgent|toggleChatFocus)"/);
